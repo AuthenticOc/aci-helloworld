@@ -1,0 +1,45 @@
+name: Build and Deploy to Azure Container Instances
+
+on:
+  push:
+    branches:
+      - master  # Eller den branchen du ønsker å bygge fra
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+
+  deploy_to_aci:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Instances
+        uses: azure/aci-deploy@v1
+        with:
+          resource-group: rg-containertest-norwayeast-001
+          dns-name-label: cidemoundervisning002
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/myapp:latest
+          name: myappcontainer
+          registry-login-server: docker.io
+          registry-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          registry-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          location: norwayeast
